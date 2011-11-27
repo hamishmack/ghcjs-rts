@@ -1,3 +1,13 @@
+/**
+ * @define {boolean} HS_DEBUG is like goog.DEBUG, but for ghcjs internals
+ */
+var HS_DEBUG = true;
+
+/**
+ * @define {boolean} enable extra tracing
+ */
+var HS_TRACE = false;
+
 var $hs = {
     // treat signed integer as unsigned word, assuming complementary representation
     Word : {
@@ -322,9 +332,9 @@ var $hs = {
         }
         return s;
     }
-}
+};
 
-_hs_text_memcpy = function (dest, doff, src, soff, count) {
+var _hs_text_memcpy = function (dest, doff, src, soff, count) {
     srcarray = new Uint16Array(src);
     destarray = new Uint16Array(dest);
     while(count != 0) {
@@ -333,9 +343,9 @@ _hs_text_memcpy = function (dest, doff, src, soff, count) {
         doff++;
         count--;
     }
-}
+};
 
-_hs_text_memcmp = function (a, aoff, b, boff, count) {
+var _hs_text_memcmp = function(a, aoff, b, boff, count) {
     aarray = new Uint16Array(a);
     barray = new Uint16Array(b);
     while(count != 0) {
@@ -348,84 +358,69 @@ _hs_text_memcmp = function (a, aoff, b, boff, count) {
         count--;
     }
     return 0;
-}
-
-$hs.Module = function () {};
-$hs.Module.prototype = {
-    init: function () {
-        this.initBeforeDependencies();
-    },
-    loadDependencies: function () {
-        for (var i = 0; i < this.dependencies.length; i++)
-	    $hs.loadModule(this.dependencies[i]);
-        this.initAfterDependencies();
-    }
 };
-$hs.loadPaths = ["./"];
-$hs.packages = [".", "ghc-prim", "integer-simple", "base"];
-$hs.loadModule = function (moduleName) {
-	    variableName = moduleName.replace(/z/g, "zz").replace(/\./g, "zi"); // Z-encoding string
-	    modulePath = moduleName.replace(/\./g, "/") + ".js";
-	    if ($hs.modules[variableName] != undefined) {
-		return;
-	    }
 
-	    var code = null;
-	    for (var i = 0; i < $hs.loadPaths.length && code == null; i++) {
-	        for (var j = 0; j < $hs.packages.length && code == null; j++) {
-		    var path = $hs.loadPaths[i] + $hs.packages[j] + "/" + modulePath;
-		    try {
-		        var transport = new XMLHttpRequest();
-		        transport.open("GET", path, false);
-		        transport.send(null);
-		        if (transport.status == 200 || transport.status == 0)
-                            code = transport.responseText;
-		    } catch (e) { }
-	        }
+var u_iswspace = function(a) { return 0; };
+var u_iswalpha = function(a) { return 0; };
+
+$hs.loaded = [];
+$hs.loadPath = "./";
+$hs.load = function (modules) {
+    for (var i = 0; i < modules.length; i++) {
+        if($hs.loaded[modules[i]]===undefined) {
+            var path = $hs.loadPath + "hs" + modules[i] + (COMPILED ? "min.js" : ".js");
+            var transport = new XMLHttpRequest();
+            transport.open("GET", path, false);
+            transport.send(null);
+            if (transport.status == 200 || transport.status == 0) {
+                try {
+                    goog.globalEval(transport.responseText);
+                    $hs.loaded[modules[i]] = true;
+                } catch (e) {
+                    $hs.logError("Error evaluating module: " + path + ":\n" + e);
+                    return false;
+                }
             }
-	    try {
-		eval(code);
-		$hs.modules[variableName].init();
-	    } catch (e) {
-		$hs.logError("Error evaluating module: " + moduleName + ":\n" + e);
-		return false;
-	    }
-	    
-	    return true;
+        }
+    }
 };
 
 $hs.fromHaskellString = function() {
-          var res = "";
-          var s = $hs.force.apply($hs, arguments);
-          for (;;) {
-            switch (s.tag) {
-              case 1: // nil
-                return res;
-              case 2: // cons
-                var chthunk = s.data[0];
-                var sthunk = s.data[1];
-                var ch = $hs.force(chthunk);
-                res = res + ch.data[0];
-                s = $hs.force(sthunk);
-            }
-          }
-        };
+  var res = "";
+  var s = $hs.force.apply($hs, arguments);
+  for (;;) {
+    switch (s.g) {
+      case 1: // nil
+        return res;
+      case 2: // cons
+        var chthunk = s.v[0];
+        var sthunk = s.v[1];
+        var ch = $hs.force(chthunk);
+        res = res + ch.v[0];
+        s = $hs.force(sthunk);
+        break;
+      default:
+        return undefined;
+    }
+  }
+};
 $hs.fromHaskellInt = function() {
-          var i = $hs.force.apply($hs, arguments);
-          return i.data[0];
-        };
+    console.log("fromHaskellInt");
+    var i = $hs.force.apply($hs, arguments);
+    return i.v[0];
+};
 $hs.fromHaskellIO = function() {
-          var newArguments = [];
-          for (var i = 0; i < arguments.length; i++)
-            newArguments[i] = arguments[i];
-          newArguments[arguments.length] = $hs.modules.GHCziPrim.hs_realWorldzh;
-          var i = $hs.force.apply($hs, newArguments);
-          return i[1];
-        };
+    console.log("fromHaskellIO");
+    var newArguments = [];
+    for (var i = 0; i < arguments.length; i++)
+    newArguments[i] = arguments[i];
+    newArguments[arguments.length] = $$GHCziPrim_realWorldzh;
+    var i = $hs.force.apply($hs, newArguments);
+    return i[1];
+};
 $hs.toHaskellInt = function(i) {
-    var hsi = new $hs.Data(1);
-    hsi.data = [(0 + i) & ~0];
-    return hsi;
+    console.log("toHaskellInt");
+    return new $DataValue(1, [(0 + i) & ~0]);
 };
 $hs.nil = function() {
     return "";
@@ -433,14 +428,6 @@ $hs.nil = function() {
 $hs.cons = function(x, xs) {
     return String.fromCharCode(x) + xs;
 };
-
 $hs.init = function() {
-    $hs.modules.GHCziPrim = new $hs.Module();
-    $hs.modules.GHCziPrim.dependencies = [];
-    $hs.modules.GHCziPrim.initBeforeDependencies = function () {};
-    $hs.modules.GHCziPrim.hs_realWorldzh = new $hs.Data(1);
-
-    $hs.loadModule("GHC.Types"); // Is required for primitive operations
+    $$GHCziPrim_realWorldzh = $D(1, function(){return []}, "realWorld#");
 }
-
-

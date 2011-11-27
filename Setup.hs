@@ -10,7 +10,8 @@ main = defaultMainWithHooks simpleUserHooks {
         instHook simpleUserHooks pkg_descr lbi hooks flags
 
         -- Also copy the JavaScript RTS files
-        let destination = libdir $absoluteInstallDirs pkg_descr lbi NoCopyDest
+        let lib         = libdir $absoluteInstallDirs pkg_descr lbi NoCopyDest
+            destination = lib </> "rts.jso"
             verbosity   = fromFlag (installVerbosity flags)
             copy n      = installOrdinaryFile verbosity n (destination </> n)
 
@@ -24,7 +25,8 @@ main = defaultMainWithHooks simpleUserHooks {
         copyHook simpleUserHooks pkg_descr lbi hooks flags
 
         -- Also copy the JavaScript RTS files
-        let destination = libdir $absoluteInstallDirs pkg_descr lbi NoCopyDest
+        let lib         = libdir $absoluteInstallDirs pkg_descr lbi NoCopyDest
+            destination = lib </> "rts.jso"
             verbosity   = fromFlag (copyVerbosity flags)
             copy n      = installOrdinaryFile verbosity n (destination </> n)
 
