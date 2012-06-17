@@ -1,2 +1,2 @@
-Merged back into https://github.com/hamishmack/ghcjs
+Merged back into https://github.com/ghcjs/ghcjs
 ====================================================
